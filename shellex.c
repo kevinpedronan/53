@@ -59,30 +59,9 @@ void eval(char *cmdline)
               else if(strcmp(argv[index], ">"))
               {
 
-                    if(strcmp(argv[--index][0], '2'))
-                    {
-
-                    }
-                    else if(
-
-                    if(strcmp(argv[++index], ">"){
-                        File out = open(argv
-                    }
 
               ++index;
            }
-
-         switch(argv[0][0]){
-
-              case '0':
-
-              case '2':
-                   out = 
-
-              case '&':
-
-              default:
-            }
 
        //  1<filename > asdf
           if (execve(argv[0], argv, environ) < 0) {
