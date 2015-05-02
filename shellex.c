@@ -12,18 +12,18 @@ int main()
 {
     char cmdline[MAXLINE]; /* Command line */
 
-    while (1) 
-        {
+  while (1) 
+  {
       /* Read */
-      printf("> ");                   
-      Fgets(cmdline, MAXLINE, stdin); 
+    printf("> ");                   
+    Fgets(cmdline, MAXLINE, stdin); 
 
-      if (feof(stdin))
-          exit(0);
+    if (feof(stdin))
+      exit(0);
 
       /* Evaluate */
-      eval(cmdline);
-    } 
+    eval(cmdline);
+  } 
 }
 /* $end shellmain */
 
@@ -36,55 +36,67 @@ void eval(char *cmdline)
     int bg;              /* Should the job run in bg or fg? */
     pid_t pid;           /* Process id */
 
-    strcpy(buf, cmdline);
-    bg = parseline(buf, argv); 
+  strcpy(buf, cmdline);
+  bg = parseline(buf, argv); 
 
-    if (argv[0] == NULL)  
-      return;   /* Ignore empty lines */
+  if (argv[0] == NULL)  
+    return;   /* Ignore empty lines */
 
-    if (!builtin_command(argv)) { 
+  if (!builtin_command(argv)) { 
 
-      if ((pid = Fork()) == 0) {   /* Child runs user job */
+    signal(SIGINT, handler);
+    signal(SIGKILL, handler);
+    signal(SIGSEGV, handler);
+    signal(SIGLRM, handler);
 
-         char *temp;
-         int index = 0;
+    if ((pid = Fork()) == 0) {   /* Child runs user job */
 
-         while(strcmp(argv[index],NULL)){
-           
-              if(strcmp(argv[index],"<")){
-                   File in = open(argv[++index], O_RDONLY);
-                   dup2(in, 0);
-                   close(in);                   
-              }
-              else if(strcmp(argv[index], ">"))
-              {
+      char *temp;
+      int index = 0;
 
+      while(strcmp(argv[index],NULL)) {
 
-              ++index;
-           }
+        //Redirect from stdin
+        if(strcmp(argv[index],"<")){
+          int in = open(argv[++index], O_RDONLY);
+          dup2(in, 0);
+          close(in);                   
+        }
+        //Redirect to stdout
+        else if(strcmp(argv[index], ">"))
+        {
+          int in = open(argv[++index], O_WRONLY);
+          dup2(in, 1);
+          close(in);                   
+        }
 
-       //  1<filename > asdf
-          if (execve(argv[0], argv, environ) < 0) {
-            printf("%s: Command not found.\n", argv[0]);
-            exit(0);
-          }
-  }
+        ++index;      
+      }
 
-  /* Parent waits for foreground job to terminate */
+      //If at the end of the argument list, execute the command
+      if (execve(argv[0], argv, environ) < 0) {
+        printf("%s: Command not found.\n", argv[0]);
+        exit(0);
+      }    
 
-  if (!bg) 
-    {
-      int status;
+      /* Parent waits for foreground job to terminate */
 
-      if (waitpid(pid, &status, 0) < 0)
-        unix_error("waitfg: waitpid error");
+      if (!bg) 
+      {
+        int status;
 
-  }
-  else
-      printf("%d %s", pid, cmdline);
+        if (waitpid(pid, &status, 0) < 0)
+          unix_error("waitfg: waitpid error");
+
+      }
+      else
+        printf("%d %s", pid, cmdline);
     }
 
-    return;
+    kill(pid, SIGKILL);
+  }
+
+  return;
 }
 
 /* If first arg is a builtin command, run it and return true */
@@ -92,10 +104,10 @@ int builtin_command(char **argv)
 {
 
     if (!strcmp(argv[0], "quit")) /* quit command */
-      exit(0);  
+  exit(0);  
 
     if (!strcmp(argv[0], "&"))    /* Ignore singleton & */
-      return 1;
+  return 1;
 
     return 0;                     /* Not a builtin command */
 }
@@ -114,38 +126,57 @@ int parseline(char *buf, char **argv)
   buf++;
 
     //Copy entire string into new string add whitespace around '>', '<' if necessary
-    char temp;
-    char* strTemp = malloc(MAXARGS);
+  char temp;
+  char* strTemp = malloc(MAXARGS);
 
-    while(temp != '\0')
-    {
+  while(temp != '\0')
+  {
 
-                
-    }
 
-    
+  }
+
+
     /* Build the argv list */
-    argc = 0;
-    while ((delim = strchr(buf, ' '))) 
-    {
-      argv[argc++] = buf;
-      *delim = '\0';
-      buf = delim + 1;
+  argc = 0;
+  while ((delim = strchr(buf, ' '))) 
+  {
+    argv[argc++] = buf;
+    *delim = '\0';
+    buf = delim + 1;
 
       while (*buf && (*buf == ' ')) /* Ignore spaces */
-             buf++;
-    }
+    buf++;
+  }
 
-    argv[argc] = NULL;
+  argv[argc] = NULL;
 
     if (argc == 0)  /* Ignore blank line */
-      return 1;
+  return 1;
 
     /* Should the job run in the background? */
-    if ((bg = (*argv[argc-1] == '&')) != 0)
-     argv[--argc] = NULL;
+  if ((bg = (*argv[argc-1] == '&')) != 0)
+   argv[--argc] = NULL;
 
-    return bg;
+ return bg;
 }
-
 /* $end parseline */
+
+void handler(int sig)
+{
+  switch(sig) {
+    case SIGINT:
+      safe_printf("Process %d interrupted by user\n", getPid());
+      break;
+    case SIGKILL:
+      safe_printf("Process %d killed\n", getPid());
+      break;
+    case SIGSEGV:
+      safe_printf("Process %d runtime error\n", getPid());
+      break;
+    case SIGLRM:
+      safe_printf("Process %d timed out\n", getPid())
+      break:
+  }
+
+  exit(0);
+}
